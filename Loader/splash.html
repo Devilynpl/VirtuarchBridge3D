@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #020617;
+            background-image: url('splash.png');
+            background-size: 100% 100%;
+            /* forces exact fit */
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            height: 100vh;
+            width: 100vw;
+            font-family: 'Consolas', 'Courier New', monospace;
+            color: white;
+            -webkit-app-region: drag;
+            padding-bottom: 25px;
+            /* adjust spacing from bottom */
+            box-sizing: border-box;
+        }
+
+        .spinner-container {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        /* From Uiverse.io by AqFox - CSS Spinner */
+        .spinner {
+            width: 44px;
+            height: 44px;
+            animation: spinner-y0fdc1 2s infinite ease;
+            transform-style: preserve-3d;
+        }
+
+        .spinner>div {
+            background-color: rgba(0, 77, 255, 0.2);
+            height: 100%;
+            position: absolute;
+            width: 100%;
+            border: 2px solid #004dff;
+        }
+
+        .spinner div:nth-of-type(1) {
+            transform: translateZ(-22px) rotateY(180deg);
+        }
+
+        .spinner div:nth-of-type(2) {
+            transform: rotateY(-270deg) translateX(50%);
+            transform-origin: top right;
+        }
+
+        .spinner div:nth-of-type(3) {
+            transform: rotateY(270deg) translateX(-50%);
+            transform-origin: center left;
+        }
+
+        .spinner div:nth-of-type(4) {
+            transform: rotateX(90deg) translateY(-50%);
+            transform-origin: top center;
+        }
+
+        .spinner div:nth-of-type(5) {
+            transform: rotateX(-90deg) translateY(50%);
+            transform-origin: bottom center;
+        }
+
+        .spinner div:nth-of-type(6) {
+            transform: translateZ(22px);
+        }
+
+        @keyframes spinner-y0fdc1 {
+            0% {
+                transform: rotate(45deg) rotateX(-25deg) rotateY(25deg);
+            }
+
+            50% {
+                transform: rotate(45deg) rotateX(-385deg) rotateY(25deg);
+            }
+
+            100% {
+                transform: rotate(45deg) rotateX(-385deg) rotateY(385deg);
+            }
+        }
+
+        .progress-bar-container {
+            width: 80%;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            font-weight: bold;
+            color: #3b82f6;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            padding: 0 4px;
+        }
+
+        .progress-track {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 2px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #22c55e, #10b981);
+            /* Pure Green UI */
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.6);
+            transition: width 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
+        }
+
+        .console-box {
+            height: 100px;
+            /* Taller for better reading */
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.8);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 3px solid #22c55e;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .log-line {
+            opacity: 0;
+            animation: fadeIn 0.3s forwards;
+            white-space: nowrap;
+        }
+
+        .timestamp {
+            color: rgba(59, 130, 246, 0.4);
+            margin-right: 6px;
+        }
+
+        .module {
+            color: #3b82f6;
+            margin-right: 6px;
+            font-weight: bold;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="progress-bar-container">
+        <div class="progress-info">
+            <span id="progress-text">BOOTING_CORE_ENGINE</span>
+            <span id="progress-percent">0%</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="console-box" id="console"></div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const fillEl = document.getElementById('progress-fill');
+        const textEl = document.getElementById('progress-text');
+        const percentEl = document.getElementById('progress-percent');
+
+        function addLog(mod, text) {
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            line.innerHTML = `<span class="timestamp">[${timeStr}]</span><span class="module">[${mod}]</span> ${text}`;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+
+            if (consoleEl.children.length > 5) {
+                consoleEl.removeChild(consoleEl.firstChild);
+            }
+        }
+
+        // Global function called by Electron main process
+        window.updateStatus = (text, progress) => {
+            const mod = text.includes('⚠️') ? 'WARN' : (text.includes('❌') ? 'ERROR' : 'READY');
+            addLog(mod, text);
+
+            if (progress !== undefined) {
+                fillEl.style.width = `${progress}%`;
+                percentEl.innerText = `${progress}%`;
+            }
+            textEl.innerText = text.toUpperCase();
+        };
+
+        // Initial logs
+        setTimeout(() => addLog('SYSTEM', 'Handshaking with Electron Main Process...'), 100);
+        setTimeout(() => addLog('BOOT', 'Awaiting kernel signals...'), 800);
+    </script>
+</body>
+
+</html>

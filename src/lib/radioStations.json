@@ -1,0 +1,42 @@
+{
+    "en": [
+        {
+            "name": "TEST (SoundHelix)",
+            "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+        },
+        {
+            "name": "Classic FM",
+            "url": "https://icecast.global.com/classicfmmp3"
+        },
+        {
+            "name": "Jazz FM",
+            "url": "https://icecast.bauerservices.co.uk/jazz.mp3"
+        },
+        {
+            "name": "BBC Radio 1",
+            "url": "https://stream.live.vc.bbc.co.uk/bbc_radio_one"
+        }
+    ],
+    "pl": [
+        {
+            "name": "TEST (SoundHelix)",
+            "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+        },
+        {
+            "name": "RMF FM",
+            "url": "https://rs6-krk2.rmfstream.pl/rmf_fm"
+        },
+        {
+            "name": "Radio ZET",
+            "url": "https://r-zet-f5.eurozet.pl/radiozet"
+        },
+        {
+            "name": "Antyradio",
+            "url": "https://r-ant-f3.eurozet.pl/antyradio"
+        },
+        {
+            "name": "Radio ESKA",
+            "url": "https://ext03.ic.smcdn.pl/2170-1.mp3"
+        }
+    ]
+}

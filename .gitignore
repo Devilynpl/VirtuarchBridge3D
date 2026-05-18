@@ -39,3 +39,37 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# custom
+/skills
+/.skills
+/test-p2p.js
+/test_output.txt
+/test-connection.js
+
+# build and distribution
+/dist/
+/out/
+/build/
+/build-resources/
+
+# logs and diagnostics
+*.log
+*.log*
+*tsc_output*
+*tsc_check*
+*tsc_error*
+/migration_error.log
+
+# agent scratch and safe folders
+/.agent/
+/audit-copy/
+/zip_test/
+*.zip
+.bashrc_new
+/BotLibrary/
+
+# ignore intermediate root markdown files
+/*.md
+!/README.md
+

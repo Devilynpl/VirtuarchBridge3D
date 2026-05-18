@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     String               @id @default(uuid()) @db.Uuid
+  username               String               @unique @db.VarChar(50)
+  email                  String               @unique @db.VarChar(255)
+  password_hash          String               @db.VarChar(255)
+  avatar_url             String?
+  status                 String               @default("offline")
+  last_seen              DateTime             @default(now())
+  created_at             DateTime             @default(now())
+  updated_at             DateTime             @default(now()) @updatedAt
+  peer_id                String               @unique @db.VarChar(50) @default(cuid())
+  public_key             String?
+
+  conversationsCreated   Conversation[]       @relation("CreatedBy")
+  memberships            ConversationMember[]
+  messagesSent           Message[]
+  attachmentsUploaded    Attachment[]
+  invitesSent            ChannelInvite[]      @relation("InvitedBy")
+  invitesReceived        ChannelInvite[]      @relation("Invitee")
+  blocksInitiated        UserBlock[]          @relation("Blocker")
+  blocksReceived         UserBlock[]          @relation("Blocked")
+
+  // Contacts
+  contacts               UserContact[]        @relation("UserToContact")
+  contactedBy            UserContact[]        @relation("ContactToUser")
+
+  // Asset Requests relations
+  assetRequestsRequester AssetRequest[]       @relation("Requester")
+  assetRequestsFulfiller AssetRequest[]       @relation("Fulfiller")
+
+  is_active              Boolean              @default(false)
+  is_verified            Boolean              @default(false)
+  verification_code      String?              @db.VarChar(8)
+  verification_expires   DateTime?
+  license                ActivationCode?
+  tier                   String               @default("FREE") @db.VarChar(20)
+  channel                String?              @db.VarChar(100)
+  indie_request_code     String?              @unique @db.VarChar(100)
+  studio_request_code    String?              @unique @db.VarChar(100)
+
+  // Assets
+  assets                 UserAsset[]          @relation("UserAssets")
+  licenses               AssetLicense[]       @relation("UserLicenses")
+
+  @@index([username])
+  @@index([email])
+  @@index([peer_id])
+  @@map("users")
+}
+
+model ActivationCode {
+  id         String    @id @default(uuid()) @db.Uuid
+  code       String    @unique @db.VarChar(100)
+  is_used    Boolean   @default(false)
+  created_at DateTime  @default(now())
+  used_at    DateTime?
+  user_id    String?   @unique @db.Uuid
+  user       User?     @relation(fields: [user_id], references: [id])
+  tier       String    @default("INDIE") @db.VarChar(20)
+  channel    String?   @db.VarChar(100)
+
+  @@map("activation_codes")
+}
+
+model UserAsset {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  asset_id    String   @db.VarChar(100)
+  name        String   @db.VarChar(255)
+  type        String   @db.VarChar(50)
+  categories  String[]
+  tags        String[]
+  thumbnail   String?
+  is_for_sale Boolean  @default(false)
+  price       Int      @default(0)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now()) @updatedAt
+
+  user User @relation("UserAssets", fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Certification & Monetization
+  revenue_model String   @default("STANDARD") // STANDARD or DEFERRED
+  signature     String?  // Digital signature for certification
+  
+  licenses      AssetLicense[] @relation("AssetLicenses")
+
+  @@index([user_id])
+  @@index([asset_id])
+  @@map("user_assets")
+}
+
+model AssetLicense {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  asset_id    String   @db.Uuid // Relation to UserAsset.id
+  type        String   @default("STANDARD") // STANDARD or DEFERRED
+  status      String   @default("ACTIVE")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now()) @updatedAt
+  
+  user        User      @relation("UserLicenses", fields: [user_id], references: [id], onDelete: Cascade)
+  asset       UserAsset @relation("AssetLicenses", fields: [asset_id], references: [id], onDelete: Cascade)
+
+  contract    AssetContract?
+  key_grants  AssetKeyGrant[]
+
+  @@unique([user_id, asset_id])
+  @@map("asset_licenses")
+}
+
+model AssetContract {
+  id                String   @id @default(uuid()) @db.Uuid
+  license_id        String   @unique @db.Uuid
+  threshold_amount  Int      @default(50000) // USD
+  royalty_percent   Float    @default(5.0)
+  is_verified       Boolean  @default(false)
+  created_at        DateTime @default(now())
+  
+  license           AssetLicense @relation(fields: [license_id], references: [id], onDelete: Cascade)
+
+  @@map("asset_contracts")
+}
+
+model AssetKeyGrant {
+  id          String   @id @default(uuid()) @db.Uuid
+  license_id  String   @db.Uuid
+  machine_id  String?  @db.VarChar(100)
+  granted_at  DateTime @default(now())
+  ip_address  String?  @db.VarChar(45)
+
+  license     AssetLicense @relation(fields: [license_id], references: [id], onDelete: Cascade)
+
+  @@map("asset_key_grants")
+}
+
+model UserContact {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  contact_id   String   @db.Uuid
+  alias        String?  @db.VarChar(50)
+  created_at   DateTime @default(now())
+
+  user    User @relation("UserToContact", fields: [user_id], references: [id], onDelete: Cascade)
+  contact User @relation("ContactToUser", fields: [contact_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, contact_id])
+  @@map("user_contacts")
+}
+
+model Conversation {
+  id            String               @id @default(uuid()) @db.Uuid
+  type          String               @db.VarChar(20)
+  name          String?              @db.VarChar(100)
+  description   String?
+  avatar_url    String?
+  created_by    String?              @db.Uuid
+  is_private    Boolean              @default(false)
+  is_archived   Boolean              @default(false)
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @default(now()) @updatedAt
+  assetRequests AssetRequest[]
+  invites       ChannelInvite[]
+  members       ConversationMember[]
+  creator       User?                @relation("CreatedBy", fields: [created_by], references: [id])
+  messages      Message[]
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id                   String       @id @default(uuid()) @db.Uuid
+  conversation_id      String       @db.Uuid
+  user_id              String       @db.Uuid
+  role                 String       @default("member") @db.VarChar(20)
+  joined_at            DateTime     @default(now())
+  last_read_message_id String?      @db.Uuid
+  is_muted             Boolean      @default(false)
+  muted_until          DateTime?
+  conversation         Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  user                 User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([conversation_id, user_id])
+  @@index([user_id])
+  @@index([conversation_id])
+  @@map("conversation_members")
+}
+
+model Message {
+  id              String                   @id @default(uuid()) @db.Uuid
+  conversation_id String                   @db.Uuid
+  sender_id       String?                  @db.Uuid
+  type            String                   @default("text") @db.VarChar(20)
+  content         String
+  metadata        String?
+  reply_to        String?                  @db.Uuid
+  is_deleted      Boolean                  @default(false)
+  created_at      DateTime                 @default(now())
+  updated_at      DateTime                 @default(now()) @updatedAt
+  search_vector   Unsupported("tsvector")?
+  assetRequests   AssetRequest[]
+  attachments     Attachment[]
+  conversation    Conversation             @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  parent          Message?                 @relation("Replies", fields: [reply_to], references: [id])
+  replies         Message[]                @relation("Replies")
+  sender          User?                    @relation(fields: [sender_id], references: [id])
+
+  @@index([conversation_id, created_at(sort: Desc)])
+  @@index([sender_id])
+  @@index([search_vector], map: "idx_messages_search", type: Gin)
+  @@map("messages")
+}
+
+model Attachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  message_id     String?  @db.Uuid
+  file_name      String   @db.VarChar(255)
+  file_size      BigInt
+  mime_type      String   @db.VarChar(100)
+  storage_path   String
+  thumbnail_path String?
+  width          Int?
+  height         Int?
+  duration       Int?
+  uploaded_by    String?  @db.Uuid
+  created_at     DateTime @default(now())
+  message        Message? @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  user           User?    @relation(fields: [uploaded_by], references: [id])
+
+  @@map("attachments")
+}
+
+model ChannelInvite {
+  id              String       @id @default(uuid()) @db.Uuid
+  conversation_id String       @db.Uuid
+  invited_by      String       @db.Uuid
+  invitee_email   String?      @db.VarChar(255)
+  invitee_user_id String?      @db.Uuid
+  token           String       @unique @db.VarChar(255)
+  expires_at      DateTime
+  used_at         DateTime?
+  created_at      DateTime     @default(now())
+  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  inviter         User         @relation("InvitedBy", fields: [invited_by], references: [id], onDelete: Cascade)
+  invitee         User?        @relation("Invitee", fields: [invitee_user_id], references: [id], onDelete: Cascade)
+
+  @@map("channel_invites")
+}
+
+model UserBlock {
+  id         String   @id @default(uuid()) @db.Uuid
+  blocker_id String   @db.Uuid
+  blocked_id String   @db.Uuid
+  reason     String?
+  created_at DateTime @default(now())
+  blocked    User     @relation("Blocked", fields: [blocked_id], references: [id], onDelete: Cascade)
+  blocker    User     @relation("Blocker", fields: [blocker_id], references: [id], onDelete: Cascade)
+
+  @@unique([blocker_id, blocked_id])
+  @@map("user_blocks")
+}
+
+model AssetRequest {
+  id              String       @id @default(uuid()) @db.Uuid
+  message_id      String       @db.Uuid
+  requester_id    String       @db.Uuid
+  conversation_id String       @db.Uuid
+  asset_code      String       @db.VarChar(50)
+  asset_name      String?      @db.VarChar(255)
+  description     String?
+  status          String       @default("pending") @db.VarChar(20)
+  fulfilled_by    String?      @db.Uuid
+  fulfilled_path  String?
+  fulfilled_at    DateTime?
+  created_at      DateTime     @default(now())
+  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  fulfiller       User?        @relation("Fulfiller", fields: [fulfilled_by], references: [id])
+  message         Message      @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  requester       User         @relation("Requester", fields: [requester_id], references: [id], onDelete: Cascade)
+
+  @@index([asset_code])
+  @@index([status])
+  @@index([conversation_id])
+  @@map("asset_requests")
+}
